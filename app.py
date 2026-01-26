@@ -1,17 +1,25 @@
 import streamlit as st
-from vector.llm_vector_analyzer import LLMVectorAnalyzer
+from analyzer.llm_vector_analyzer import LLMVectorAnalyzer
 import os
-from analyzer.validator import FileValidator
+from utils.validator import FileValidator
 from dotenv import load_dotenv
 
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-index_name = "index-log-analyzer"
+index_name = "index-log"
 
 # os.environ["LANGSMITH_TRACING"] = "true"
 # os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter your LangSmith API key: ")
+
+# Initialize session state to keep track of inputs
+if 'skip_ingest' not in st.session_state:
+    st.session_state.skip_ingest = False
+if 'skip_summary' not in st.session_state:
+    st.session_state.skip_summary = False
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = None
 
 st.set_page_config(page_title="Log Analyzer", layout="wide")
 
@@ -37,19 +45,49 @@ if uploaded_file is not None:
         except Exception:
             text = file_bytes.decode("latin-1")
 
+        # text = text[:1000] #commentout
 
-        analyzer = LLMVectorAnalyzer(openai_api_key=OPENAI_API_KEY, pinecone_api_key=PINECONE_API_KEY, index_name=index_name)
-        # analyzer.ingest_log_pinecone(text)
+        if st.session_state.analyzer is None:
+            analyzer = LLMVectorAnalyzer(openai_api_key=OPENAI_API_KEY, pinecone_api_key=PINECONE_API_KEY,
+                                     index_name=index_name)
+            st.session_state.analyzer = analyzer
+        else:
+            analyzer = st.session_state.analyzer
 
-        st.header("Summary :")
-        # st.write(analyzer.summarize(text))
+        if not st.session_state.skip_ingest:
+            with st.spinner("Ingesting log"):
+                try:
+                    analyzer.ingest_log_langchain_llm(text)
+                    print("analyzer.ingest_log_langchain_llm(text)")
+                    st.session_state.skip_ingest = True
+                except Exception as e:
+                    print("Error ingesting log file", e)
+                    st.error(f"Error ingesting log file {e}")
 
-        st.markdown("---")
 
-        st.header("Ask a question about the uploaded log")
-        prompt = st.text_input("Enter a question (e.g., List Top 3 issues which are reoccurring)")
-        if prompt:
-            st.write(analyzer.analyze_log_rag(prompt))
+        if st.button("Summarize") and analyzer:
+            if not st.session_state.skip_summary:
+                container = st.empty()
+                with st.spinner("Summarizing log"):
+                    try:
+                        container.write(analyzer.summarize(text))
+                        print("analyzer.summarize(text)")
+                        st.session_state.skip_summary = True
+                    except Exception as e:
+                        print("Error creating final summary", e)
+                        st.error(f"Error creating final summary {e}")
+
+        if analyzer:
+            container = st.empty()
+            st.header("Ask a question about the uploaded log")
+            prompt = st.text_input("Enter a question (e.g., List Top 3 issues which are reoccurring)")
+            if prompt:
+                try:
+                    container.write(analyzer.analyze_log_rag(prompt))
+                    print("analyzer.analyze_log_rag(prompt)")
+                except Exception as e:
+                    print("Error analyzing log", e)
+                    st.error(f"Error analyzing log {e}")
 
 
 else:

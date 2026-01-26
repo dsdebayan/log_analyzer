@@ -1,6 +1,7 @@
 # Import the Pinecone library
 import os
 
+from langchain_ollama import OllamaEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 from langchain_openai import OpenAIEmbeddings
@@ -10,12 +11,12 @@ from dotenv import load_dotenv
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-index_name = "index-log-analyzer"
+index_name = "index-log-new"
 
-# pc = Pinecone(api_key=PINECONE_API_KEY)
-
-# Create a dense index with integrated embedding
-# index_name = "quickstart-py"
+pc = Pinecone(api_key=PINECONE_API_KEY)
+#
+# # Create a dense index with integrated embedding
+# # index_name = "quickstart-py"
 # if not pc.has_index(index_name):
 #     pc.create_index_for_model(
 #         name=index_name,
@@ -85,15 +86,16 @@ index_name = "index-log-analyzer"
 # # Upsert the records into a namespace
 # dense_index.upsert_records("example-namespace", records)
 #
-# # Wait for the upserted vectors to be indexed
-# import time
-# time.sleep(10)
+# # # Wait for the upserted vectors to be indexed
+# # import time
+# # time.sleep(10)
 #
 # # View stats for the index
 # stats = dense_index.describe_index_stats()
 # print(stats)
 
-embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-vector_store = PineconeVectorStore(index_name=index_name, pinecone_api_key=PINECONE_API_KEY)
-response = vector_store.similarity_search("jk2_init() Found child", k=1)
+embeddings = OllamaEmbeddings(model="mxbai-embed-large:335m")
+vector_store = PineconeVectorStore(index_name=index_name, embedding=embeddings)
+print(vector_store.index)
+response = vector_store.similarity_search("jk2_init", k=5000)
 print(response)
