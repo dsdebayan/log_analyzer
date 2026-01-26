@@ -8,3 +8,7 @@ streamlit
 python-dotenv
 ollama
 langchain-ollama
+pytest
+pytest-cov
+pytest-mock
+unittest-xml-reporting

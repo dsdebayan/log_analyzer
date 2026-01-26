@@ -1,0 +1,133 @@
+@startuml Log Analyzer App Sequence Diagram
+!theme plain
+title Log Analyzer Application - UML Sequence Diagram
+
+actor User
+participant "Streamlit UI" as UI
+participant "FileValidator" as Validator
+participant "LLMVectorAnalyzer" as Analyzer
+participant "Pinecone" as Pinecone
+participant "LangChain" as LC
+participant "Session State" as Session
+
+User -> UI: Load App
+activate UI
+UI -> Session: Initialize session_state\n(skip_ingest, skip_summary)
+activate Session
+Session --> UI: Return initialized state
+deactivate Session
+
+UI -> User: Display UI\n(title, description)
+User -> UI: Upload .log file
+activate Validator
+UI -> Validator: validate(filename, size)
+Validator --> UI: Return (ok, message)
+deactivate Validator
+
+alt Validation Failed
+    UI -> User: Display error message
+else Validation Passed
+    UI -> UI: Decode file\n(UTF-8 or Latin-1)
+
+    alt Analyzer Not Initialized
+        UI -> Analyzer: Create new LLMVectorAnalyzer\n(api_keys, index_name)
+        activate Analyzer
+        Analyzer -> Pinecone: Initialize Pinecone client
+        Analyzer -> LC: Initialize ChatOllama & OllamaEmbeddings
+        Analyzer --> UI: Return analyzer instance
+        deactivate Analyzer
+        Session -> Session: Store analyzer in session_state
+    else Analyzer Already Exists
+        Session -> UI: Retrieve existing analyzer
+    end
+
+    alt Skip Ingest Flag Not Set
+        UI -> User: Show "Ingesting log" spinner
+        UI -> Analyzer: ingest_log_langchain_llm(text)
+        activate Analyzer
+        Analyzer -> LC: RecursiveCharacterTextSplitter
+        activate LC
+        LC --> Analyzer: Return chunks
+        deactivate LC
+
+        Analyzer -> Pinecone: Check if index exists
+        alt Index Exists
+            Analyzer -> Pinecone: Delete existing index
+        end
+
+        Analyzer -> Pinecone: Create new index
+        activate Pinecone
+        Pinecone --> Analyzer: Index created
+        deactivate Pinecone
+
+        Analyzer -> Pinecone: Add text chunks to vector store
+        activate Pinecone
+        Pinecone --> Analyzer: Chunks ingested
+        deactivate Pinecone
+        Analyzer --> UI: Return success
+        deactivate Analyzer
+        Session -> Session: Set skip_ingest = True
+    end
+
+    alt User Clicks "Summarize" Button
+        UI -> User: Show "Summarizing log" spinner
+        UI -> Analyzer: summarize(text)
+        activate Analyzer
+
+        Analyzer -> Analyzer: summarize_chunks(text)
+        activate Analyzer
+        Analyzer -> LC: RecursiveCharacterTextSplitter
+        activate LC
+        LC --> Analyzer: Return chunks (max 5)
+        deactivate LC
+
+        loop For each chunk (max 5)
+            Analyzer -> LC: prompt_template_chunk_summary
+            activate LC
+            Analyzer -> LC: ChatOllama.invoke()
+            LC --> Analyzer: Chunk summary
+            deactivate LC
+        end
+        Analyzer --> Analyzer: Return chunk summaries list
+        deactivate Analyzer
+
+        Analyzer -> LC: prompt_template_summary
+        activate LC
+        Analyzer -> LC: ChatOllama.invoke(summaries)
+        LC --> Analyzer: Final summary
+        deactivate LC
+        Analyzer --> UI: Return final summary
+        deactivate Analyzer
+
+        UI -> User: Display summary
+        Session -> Session: Set skip_summary = True
+    end
+
+    alt User Enters Question
+        UI -> User: Show "Analyzing log" spinner
+        UI -> Analyzer: analyze_log_rag(prompt)
+        activate Analyzer
+
+        Analyzer -> Pinecone: Index retriever
+        activate Pinecone
+        Analyzer -> Pinecone: Similarity search (k=10)
+        Pinecone --> Analyzer: Return relevant chunks
+        deactivate Pinecone
+
+        Analyzer -> LC: create_stuff_documents_chain
+        activate LC
+        Analyzer -> LC: create_retrieval_chain
+        Analyzer -> LC: RAG chain invoke
+        LC --> Analyzer: Answer
+        deactivate LC
+        Analyzer --> UI: Return answer
+        deactivate Analyzer
+
+        UI -> User: Display answer
+    end
+end
+
+User -> UI: Exit/Refresh
+deactivate UI
+
+@enduml

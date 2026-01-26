@@ -80,7 +80,7 @@ if uploaded_file is not None:
         if analyzer:
             container = st.empty()
             st.header("Ask a question about the uploaded log")
-            prompt = st.text_input("Enter a question (e.g., List Top 3 issues which are reoccurring)")
+            prompt = st.text_input("Enter a question")
             if prompt:
                 try:
                     container.write(analyzer.analyze_log_rag(prompt))
