@@ -1,0 +1,50 @@
+@startuml log_analyzer_usecase
+title Log Analyzer - Use Case Diagram
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+
+left to right direction
+
+actor User
+
+rectangle "Log Analyzer System" {
+    usecase "Upload Log File" as UC1
+    usecase "Validate File" as UC2
+    usecase "Ingest Log Data" as UC3
+    usecase "Extract & Chunk Content" as UC4
+    usecase "Generate Embeddings" as UC5
+    usecase "Store in Vector DB" as UC6
+    usecase "Query Logs" as UC7
+    usecase "Retrieve Similar Chunks" as UC8
+    usecase "Generate Analysis" as UC9
+    usecase "Display Results" as UC10
+    usecase "View Analysis" as UC11
+
+    package "RAG Flow (Highlighted)" #FFE5E5 {
+        usecase "Retrieval" as RAG_R
+        usecase "Augmentation" as RAG_A
+        usecase "Generation" as RAG_G
+    }
+}
+
+User --> UC1
+UC1 --> UC2
+UC2 --> UC3
+UC3 --> UC4
+UC4 --> UC5
+UC5 --> UC6
+
+User --> UC7
+UC7 --> RAG_R
+RAG_R --> UC8
+UC8 --> RAG_A
+RAG_A --> RAG_G
+RAG_G --> UC9
+UC9 --> UC10
+UC10 --> UC11
+UC11 --> User
+
+UC2 -.-> UC3 : continue if valid
+
+@enduml
