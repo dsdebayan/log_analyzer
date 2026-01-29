@@ -1,0 +1,86 @@
+@startuml log_analyzer_architecture
+title Log Analyzer - Architecture Diagram
+skinparam backgroundColor #FEFEFE
+skinparam componentBackgroundColor #F0F0F0
+skinparam componentBorderColor #333333
+
+rectangle "User Interface Layer" {
+    component [Streamlit UI\n(app.py)] as StreamlitUI
+}
+
+rectangle "Application Layer" {
+    component [File Validator\n(validator.py)] as Validator
+    component [Analyzer Core\n(analyzer.py)] as Analyzer
+    component [Prompt Manager\n(prompts.py)] as Prompts
+}
+
+rectangle "RAG Pipeline (Highlighted)" #FFE5E5 {
+    rectangle "1. Ingestion Phase" {
+        component [Text Loader] as TextLoader
+        component [Text Splitter\n(RecursiveCharacterTextSplitter)] as Splitter
+    }
+
+    rectangle "2. Retrieval Phase (RAG-R)" {
+        component [Pinecone Vector Store\n(as_retriever)] as VectorStore
+        component [Similarity Search\n(k=1000)] as SimilaritySearch
+    }
+
+    rectangle "3. Augmentation Phase (RAG-A)" {
+        component [Context Combiner\n(create_stuff_documents_chain)] as ContextCombiner
+        component [Prompt Template] as PromptEngine
+    }
+
+    rectangle "4. Generation Phase (RAG-G)" {
+        component [LLM\n(GPT-4o / Llama3.2 / Claude)] as LLM
+        component [Answer Generator] as AnswerGen
+    }
+}
+
+rectangle "Embedding Layer" {
+    component [Embedding Model\n(OpenAI / Ollama / Bedrock)] as EmbeddingModel
+}
+
+rectangle "Vector Database" {
+    component [Pinecone\n(Serverless Index)] as PineconeDB
+}
+
+rectangle "External LLM Services" {
+    component [OpenAI API\n(gpt-4o-mini)] as OpenAI
+    component [Ollama Local\n(llama3.2:latest)] as Ollama
+    component [AWS Bedrock\n(Claude-v2)] as Bedrock
+}
+
+StreamlitUI --> Validator
+StreamlitUI --> Analyzer
+
+Validator -.-> Analyzer : validates file
+
+Analyzer --> TextLoader
+TextLoader --> Splitter
+
+Splitter --> EmbeddingModel
+EmbeddingModel --> VectorStore
+
+VectorStore --> Splitter : add_documents
+VectorStore --> PineconeDB
+
+Analyzer --> VectorStore
+VectorStore --> SimilaritySearch
+
+SimilaritySearch --> ContextCombiner
+ContextCombiner --> PromptEngine
+PromptEngine --> Prompts
+
+PromptEngine --> LLM
+LLM --> AnswerGen
+AnswerGen --> StreamlitUI
+
+EmbeddingModel -.-> OpenAI : uses
+EmbeddingModel -.-> Ollama : uses
+EmbeddingModel -.-> Bedrock : uses
+
+LLM -.-> OpenAI : uses
+LLM -.-> Ollama : uses
+LLM -.-> Bedrock : uses
+
+@enduml
