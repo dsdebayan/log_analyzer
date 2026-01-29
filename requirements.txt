@@ -1,0 +1,14 @@
+langchain_openai
+langchain_community
+langchain_text_splitters
+langchain_core
+langchain_classic
+langchain_pinecone
+streamlit
+python-dotenv
+ollama
+langchain-ollama
+pytest
+pytest-cov
+pytest-mock
+unittest-xml-reporting

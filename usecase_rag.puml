@@ -1,0 +1,54 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+' Define RAG styling for use cases
+skinparam usecase {
+  BackgroundColor<<RAG>> #FFF2CC
+  BorderColor<<RAG>> #E69138
+}
+
+actor User
+actor "Pinecone\n(Vector DB)" as Pinecone
+actor "LLM / Embeddings\n(OpenAI / Ollama)" as LLM
+
+rectangle "Log Analyzer App" {
+  usecase UC_Upload as "Upload .log file"
+  usecase UC_Validate as "Validate file (.log, size)"
+  usecase UC_Decode as "Decode file bytes"
+  usecase UC_Init as "Initialize Analyzer" <<RAG>>
+  usecase UC_Ingest as "Ingest logs\n(split → embed → store)" <<RAG>>
+  usecase UC_Ask as "Ask question\n(RAG Q&A)" <<RAG>>
+  usecase UC_Display as "Display results" <<RAG>>
+}
+
+' Primary actor interactions
+User --> UC_Upload
+User --> UC_Ask #E69138
+User --> UC_Display
+
+' Internal flows (RAG-focused)
+UC_Upload --> UC_Validate
+UC_Validate --> UC_Decode
+UC_Decode --> UC_Init : if analyzer not set
+UC_Init --> UC_Ingest #E69138
+UC_Ingest ..> Pinecone : store embeddings #E69138
+
+' RAG query flow (highlighted)
+UC_Ask ..> Pinecone : retrieve relevant docs (similarity search) #E69138
+UC_Ask ..> LLM : answer using retrieved context #E69138
+LLM --> UC_Display : answer #E69138
+Pinecone --> UC_Ask : top-k documents #E69138
+
+note right of UC_Ask
+  <<RAG>> Highlighted items (orange) are the RAG flow:
+  initialize → ingest → retrieve → LLM → display
+end note
+
+note left of UC_Upload
+  Streamlit UI (app.py)
+  - handles upload, widgets, prompt input
+  - orchestrates calls to the analyzer
+end note
+
+@enduml

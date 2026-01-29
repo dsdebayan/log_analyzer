@@ -1,0 +1,48 @@
+@startuml
+left to right direction
+skinparam componentStyle rectangle
+
+' Actors
+actor User
+
+' System boundary
+package "Log Analyzer" {
+  [Streamlit UI\n(app.py)] as UI
+  [FileValidator\n(utils/validator.py)] as Validator
+  component "LLMVectorAnalyzer\n(analyzer/llm_vector_analyzer.py)" as Analyzer #FFF2CC
+  component "Prompts\n(utils/prompts.py)" as Prompts
+  component "LangChain / Chains" as LangChain #FFF2CC
+}
+
+' External systems
+database "Pinecone\n(Vector DB)" as Pinecone #FFF2CC
+cloud "LLM / Embeddings\n(OpenAI / Ollama)" as LLM #FFF2CC
+
+' Interactions
+User --> UI : upload .log, enter question
+UI --> Validator : validate file (.log, size)
+UI --> Analyzer : instantiate / invoke (ingest, ask)
+Analyzer --> Prompts : use prompt templates
+Analyzer -[#E69138]-> LangChain : build retrieval chains
+LangChain -[#E69138]-> LLM : call LLM for generation
+LangChain -[#E69138]-> LLM : call embeddings or call Embedding service
+Analyzer -[#E69138]-> Pinecone : create/index / upsert embeddings
+Analyzer -[#E69138]-> Pinecone : query (retrieve top-k docs)
+Pinecone -[#E69138]-> Analyzer : return top-k documents
+Analyzer --> UI : results (answers / excerpts)
+
+' Notes mapping to code
+note right of Analyzer
+  Highlighted components (orange background):
+  Analyzer, LangChain, Pinecone, LLM — core RAG path
+  Key methods:
+  - ingest_log_langchain_llm(): split → embed → store
+  - analyze_log_rag(prompt): retrieve → LLM answer
+end note
+
+note left of UI
+  Streamlit responsibilities:
+  - file uploader, RAG prompt input, display results
+end note
+
+@enduml
