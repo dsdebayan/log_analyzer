@@ -34,7 +34,7 @@ if uploaded_file is not None:
     size = len(file_bytes)
 
     ok, msg = FileValidator.validate(filename, size)
-    # st.session_state.skip_ingest = False
+    st.session_state.skip_ingest = False
     if not ok:
         st.error(msg)
     else:
@@ -56,8 +56,8 @@ if uploaded_file is not None:
         if not st.session_state.skip_ingest:
             with st.spinner("Ingesting log"):
                 try:
-                    # chunk_size = analyzer.ingest(path)
-                    # st.success(f"Chunks ingested : {chunk_size}")
+                    chunk_size = analyzer.ingest(path)
+                    st.success(f"Chunks ingested : {chunk_size}")
                     st.session_state.skip_ingest = True
                 except Exception as e:
                     print("Error ingesting log file", e)
