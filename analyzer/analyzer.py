@@ -16,22 +16,23 @@ from utils.prompts import prompt_template
 
 class Analyzer:
 
-    def __init__(self, openai_api_key: Optional[str] = None, pinecone_api_key: Optional[str] = None, index_name: Optional[str] = None, model_vendor: str = None):
+    def __init__(self, openai_api_key: Optional[str] = None, pinecone_api_key: Optional[str] = None,
+                 index_name: Optional[str] = None, model_vendor: str = None,
+                 llm_model: str = None, embedding_model: str = None):
         self.openai_api_key = openai_api_key
         self.pinecone_api_key = pinecone_api_key
         self.index_name = index_name
         if model_vendor == "ollama":
-            self.llm = ChatOllama(model="llama3.2:latest")
-            self.embeddings = OllamaEmbeddings(model="embeddinggemma:latest")
+            self.llm = ChatOllama(model=llm_model)
+            self.embeddings = OllamaEmbeddings(model=embedding_model)
         elif model_vendor == 'openai':
-            self.llm = ChatOpenAI(model="gpt-4o-mini")
-            self.embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+            self.llm = ChatOpenAI(model=llm_model)
+            self.embeddings = OpenAIEmbeddings(model=embedding_model)
         elif model_vendor == 'bedrock':
-            self.llm = ChatOpenAI(model="gpt-4o-mini")
-            self.embeddings = BedrockEmbeddings(credentials_profile_name= 'default', model_id='amazon.titan-embed-text-v1')
-            llm = BedrockLLM(
+            self.embeddings = BedrockEmbeddings(credentials_profile_name= 'default', model_id=embedding_model)
+            self.llm = BedrockLLM(
                 credentials_profile_name="default",
-                model_id="anthropic.claude-v2")
+                model_id=llm_model)
 
         self.vector_store = None
         self.pc = Pinecone(api_key=self.pinecone_api_key)
@@ -60,7 +61,7 @@ class Analyzer:
 
         self.vector_store.add_documents(chunks)
 
-        print("ingestion completed using langchain llm......")
+        print("ingestion completed......")
         return len(chunks)
 
 
@@ -68,7 +69,7 @@ class Analyzer:
         print("rag flow started......")
 
         # retrieval
-        retriever = self.vector_store.as_retriever(search_type="similarity", k=1000)
+        retriever = self.vector_store.as_retriever(search_type="similarity")
 
         # chain
         qa_chain = create_stuff_documents_chain(self.llm, prompt_template)

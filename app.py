@@ -9,7 +9,10 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-index_name = "index-log"
+index_name = os.getenv("INDEX_LOG")
+model_vendor = os.getenv("MODEL_VENDOR")
+llm_model = os.getenv("LLM_MODEL")
+embedding_model = os.getenv("EMBEDDING_MODEL")
 
 if 'skip_ingest' not in st.session_state:
     st.session_state.skip_ingest = False
@@ -31,7 +34,7 @@ if uploaded_file is not None:
     size = len(file_bytes)
 
     ok, msg = FileValidator.validate(filename, size)
-    st.session_state.skip_ingest = False
+    # st.session_state.skip_ingest = False
     if not ok:
         st.error(msg)
     else:
@@ -44,7 +47,8 @@ if uploaded_file is not None:
 
         if st.session_state.analyzer is None:
             analyzer = Analyzer(openai_api_key=OPENAI_API_KEY, pinecone_api_key=PINECONE_API_KEY,
-                                index_name=index_name, model_vendor=os.getenv("MODEL_VENDOR"))
+                                index_name=index_name, model_vendor=model_vendor,
+                                llm_model=llm_model, embedding_model=embedding_model)
             st.session_state.analyzer = analyzer
         else:
             analyzer = st.session_state.analyzer
@@ -52,8 +56,8 @@ if uploaded_file is not None:
         if not st.session_state.skip_ingest:
             with st.spinner("Ingesting log"):
                 try:
-                    chunk_size = analyzer.ingest(path)
-                    st.success(f"Chunks ingested : {chunk_size}")
+                    # chunk_size = analyzer.ingest(path)
+                    # st.success(f"Chunks ingested : {chunk_size}")
                     st.session_state.skip_ingest = True
                 except Exception as e:
                     print("Error ingesting log file", e)
