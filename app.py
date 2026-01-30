@@ -34,7 +34,6 @@ if uploaded_file is not None:
     size = len(file_bytes)
 
     ok, msg = FileValidator.validate(filename, size)
-    st.session_state.skip_ingest = False
     if not ok:
         st.error(msg)
     else:
