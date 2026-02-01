@@ -13,11 +13,21 @@ index_name = os.getenv("INDEX_LOG")
 model_vendor = os.getenv("MODEL_VENDOR")
 llm_model = os.getenv("LLM_MODEL")
 embedding_model = os.getenv("EMBEDDING_MODEL")
+skip_create_index = os.getenv("SKIP_INDEX_CREATE")
+skip_ingest = os.getenv("SKIP_INGEST")
 
 if 'skip_ingest' not in st.session_state:
     st.session_state.skip_ingest = False
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = None
+if 'skip_create_index' not in st.session_state:
+    st.session_state.skip_create_index = False
+
+if skip_create_index == "true":
+    st.session_state.skip_create_index = True
+if skip_ingest == "true":
+    st.session_state.skip_ingest = True
+
 
 st.set_page_config(page_title="Log Analyzer", layout="wide")
 
@@ -47,7 +57,8 @@ if uploaded_file is not None:
         if st.session_state.analyzer is None:
             analyzer = Analyzer(openai_api_key=OPENAI_API_KEY, pinecone_api_key=PINECONE_API_KEY,
                                 index_name=index_name, model_vendor=model_vendor,
-                                llm_model=llm_model, embedding_model=embedding_model)
+                                llm_model=llm_model, embedding_model=embedding_model,
+                                skip_create_index=st.session_state.skip_create_index)
             st.session_state.analyzer = analyzer
         else:
             analyzer = st.session_state.analyzer
@@ -58,6 +69,7 @@ if uploaded_file is not None:
                     chunk_size = analyzer.ingest(path)
                     st.success(f"Chunks ingested : {chunk_size}")
                     st.session_state.skip_ingest = True
+                    st.session_state.skip_create_index = True
                 except Exception as e:
                     print("Error ingesting log file", e)
                     st.error(f"Error ingesting log file {e}")
