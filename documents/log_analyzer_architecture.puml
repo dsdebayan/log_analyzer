@@ -1,86 +1,110 @@
 @startuml log_analyzer_architecture
-title Log Analyzer - Architecture Diagram
+title Log Analyzer - Architecture Diagram (RAG Flow Highlighted)
 skinparam backgroundColor #FEFEFE
 skinparam componentBackgroundColor #F0F0F0
 skinparam componentBorderColor #333333
+skinparam rectangle {
+    BackgroundColor #E8F4F8
+    BorderColor #0066CC
+}
 
+' ===== UI Layer =====
 rectangle "User Interface Layer" {
     component [Streamlit UI\n(app.py)] as StreamlitUI
 }
 
+' ===== Application Layer =====
 rectangle "Application Layer" {
     component [File Validator\n(validator.py)] as Validator
     component [Analyzer Core\n(analyzer.py)] as Analyzer
     component [Prompt Manager\n(prompts.py)] as Prompts
 }
 
-rectangle "RAG Pipeline (Highlighted)" #FFE5E5 {
-    rectangle "1. Ingestion Phase" {
-        component [Text Loader] as TextLoader
-        component [Text Splitter\n(RecursiveCharacterTextSplitter)] as Splitter
+' ===== Data Processing & RAG Pipeline =====
+rectangle "Data Processing & RAG Pipeline" #FFE5CC {
+
+    rectangle "Step 1: Ingestion" {
+        component [Text Loader\n(LangChain)] as TextLoader
+        component [Text Splitter\n(RecursiveCharacterSplitter)] as Splitter
     }
 
-    rectangle "2. Retrieval Phase (RAG-R)" {
-        component [Pinecone Vector Store\n(as_retriever)] as VectorStore
+    rectangle "Step 2: Embedding Generation" {
+        component [Embedding Model\n(OpenAI/Ollama/Bedrock)] as EmbeddingModel
+    }
+
+    rectangle "Step 3: Vector Storage" {
+        component [Pinecone Vector Store\n(PineconeVectorStore)] as VectorStore
+    }
+
+    rectangle "RAG - Retrieval (R)" #FFCCCC {
+        component [Query Embedding] as QueryEmbedding
         component [Similarity Search\n(k=1000)] as SimilaritySearch
     }
 
-    rectangle "3. Augmentation Phase (RAG-A)" {
+    rectangle "RAG - Augmentation (A)" #FFDDCC {
         component [Context Combiner\n(create_stuff_documents_chain)] as ContextCombiner
-        component [Prompt Template] as PromptEngine
+        component [Prompt Template\n(PromptTemplate)] as PromptEngine
     }
 
-    rectangle "4. Generation Phase (RAG-G)" {
-        component [LLM\n(GPT-4o / Llama3.2 / Claude)] as LLM
-        component [Answer Generator] as AnswerGen
+    rectangle "RAG - Generation (G)" #FFFFCC {
+        component [LLM Inference\n(ChatOpenAI/ChatOllama/BedrockLLM)] as LLM
+        component [Response Generator] as ResponseGen
     }
 }
 
-rectangle "Embedding Layer" {
-    component [Embedding Model\n(OpenAI / Ollama / Bedrock)] as EmbeddingModel
+' ===== External Services =====
+rectangle "External Services" {
+    component [OpenAI API\n(gpt-4o-mini)] as OpenAI
+    component [Ollama Local\n(llama3.2:latest)] as Ollama
+    component [AWS Bedrock\n(Claude)] as Bedrock
 }
 
 rectangle "Vector Database" {
     component [Pinecone\n(Serverless Index)] as PineconeDB
 }
 
-rectangle "External LLM Services" {
-    component [OpenAI API\n(gpt-4o-mini)] as OpenAI
-    component [Ollama Local\n(llama3.2:latest)] as Ollama
-    component [AWS Bedrock\n(Claude-v2)] as Bedrock
-}
+' ===== Relationships: UI to Application =====
+StreamlitUI --> Validator : validates
+StreamlitUI --> Analyzer : initializes
 
-StreamlitUI --> Validator
-StreamlitUI --> Analyzer
+' ===== Relationships: Validation & Ingestion Flow =====
+Validator -.-> Analyzer : file OK
 
-Validator -.-> Analyzer : validates file
+Analyzer --> TextLoader : load file
+TextLoader --> Splitter : split docs
 
-Analyzer --> TextLoader
-TextLoader --> Splitter
+' ===== Relationships: Embedding & Storage =====
+Splitter --> EmbeddingModel : embed chunks
+EmbeddingModel --> VectorStore : store vectors
+VectorStore --> PineconeDB : persist
 
-Splitter --> EmbeddingModel
-EmbeddingModel --> VectorStore
+' ===== Relationships: Query Processing (RAG) =====
+Analyzer --> QueryEmbedding : embed query
+QueryEmbedding --> SimilaritySearch : find similar
+SimilaritySearch --> ContextCombiner : pass chunks
+ContextCombiner --> PromptEngine : format context
+PromptEngine --> Prompts : use template
 
-VectorStore --> Splitter : add_documents
-VectorStore --> PineconeDB
+PromptEngine --> LLM : generate
+LLM --> ResponseGen : output
+ResponseGen --> StreamlitUI : return answer
 
-Analyzer --> VectorStore
-VectorStore --> SimilaritySearch
+' ===== External Service Integrations =====
+EmbeddingModel -.-> OpenAI : embedding
+EmbeddingModel -.-> Ollama : embedding
+EmbeddingModel -.-> Bedrock : embedding
 
-SimilaritySearch --> ContextCombiner
-ContextCombiner --> PromptEngine
-PromptEngine --> Prompts
+LLM -.-> OpenAI : inference
+LLM -.-> Ollama : inference
+LLM -.-> Bedrock : inference
 
-PromptEngine --> LLM
-LLM --> AnswerGen
-AnswerGen --> StreamlitUI
+VectorStore -.-> PineconeDB : index ops
 
-EmbeddingModel -.-> OpenAI : uses
-EmbeddingModel -.-> Ollama : uses
-EmbeddingModel -.-> Bedrock : uses
-
-LLM -.-> OpenAI : uses
-LLM -.-> Ollama : uses
-LLM -.-> Bedrock : uses
+legend right
+  Color Coding:
+  |<#FFCCCC> RAG Retrieval Phase |
+  |<#FFDDCC> RAG Augmentation Phase |
+  |<#FFFFCC> RAG Generation Phase |
+end legend
 
 @enduml
